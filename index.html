@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eco Build Estimate - Sustainable Construction Material &amp; Cost Calculator</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#calculator" aria-label="Eco Build Estimate calculator home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" role="img" focusable="false">
+            <rect x="5" y="9" width="26" height="30" rx="3"></rect>
+            <path d="M31 18h8v21h-8z"></path>
+            <path d="M12 16h11M12 23h11M12 30h11"></path>
+            <path d="M34 12c4 1 7 5 7 9-5 0-8-3-9-7"></path>
+          </svg>
+        </span>
+        <span>
+          <span class="brand-name">Eco Build Estimate</span>
+          <span class="brand-subtitle">Sustainable construction calculator</span>
+        </span>
+      </a>
+      <nav class="top-actions" aria-label="Primary">
+        <a href="#calculator">Calculator</a>
+        <a href="#results">Results</a>
+        <button class="ghost-button" type="button" id="openAdminButton">Admin settings</button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="calculator">
+    <section class="intro-band" aria-labelledby="pageTitle">
+      <div class="intro-copy">
+        <p class="eyebrow">Civil engineering preliminary estimator</p>
+        <h1 id="pageTitle">Eco Build Estimate - Sustainable Construction Material &amp; Cost Calculator</h1>
+        <p>
+          Estimate construction material quantities, illustrative cost, and embodied carbon, then compare conventional choices with lower-carbon alternatives.
+        </p>
+      </div>
+      <div class="intro-panel" aria-label="Current estimate status">
+        <div>
+          <span class="metric-label">Rooms modeled</span>
+          <strong id="roomMetric">4</strong>
+        </div>
+        <div>
+          <span class="metric-label">Assumption mode</span>
+          <strong>Preliminary</strong>
+        </div>
+        <div>
+          <span class="metric-label">Currency</span>
+          <strong>INR</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="notice" aria-label="Important disclaimer">
+      <strong>Preliminary estimation tool.</strong>
+      This calculator provides planning and educational estimates only. It is not structural design, a professional BOQ, approved specification, or a substitute for local market verification.
+    </section>
+
+    <div class="workspace">
+      <aside class="section-nav" aria-label="Calculator sections">
+        <a href="#buildingDetails" class="active">Building</a>
+        <a href="#roomDimensions">Rooms</a>
+        <a href="#materialInputs">Materials</a>
+        <a href="#advancedSettings">Assumptions</a>
+        <a href="#materialRates">Rates</a>
+        <a href="#results">Results</a>
+      </aside>
+
+      <div class="form-stack">
+        <section class="section-card" id="buildingDetails" aria-labelledby="buildingHeading">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Step 1</p>
+              <h2 id="buildingHeading">Building Details</h2>
+            </div>
+            <span class="section-badge">SI units</span>
+          </div>
+          <div class="input-grid two">
+            <label>
+              <span>Project name</span>
+              <input id="projectName" type="text" value="Sample residential estimate">
+            </label>
+            <label>
+              <span>Project location</span>
+              <input id="projectLocation" type="text" value="Local market demo">
+            </label>
+            <label>
+              <span>Number of storeys</span>
+              <input id="storeys" type="number" min="1" max="12" step="1" value="2">
+              <small>Generates room sections automatically.</small>
+            </label>
+            <label>
+              <span>Rooms per storey</span>
+              <input id="roomsPerStorey" type="number" min="1" max="12" step="1" value="2">
+            </label>
+            <label>
+              <span>Slab thickness</span>
+              <div class="unit-input">
+                <input id="slabThickness" type="number" min="0.05" step="0.005" value="0.125">
+                <span>m</span>
+              </div>
+            </label>
+            <label>
+              <span>Columns per storey</span>
+              <input id="columnsPerStorey" type="number" min="1" step="1" value="4">
+              <small>Editable preliminary assumption.</small>
+            </label>
+          </div>
+        </section>
+
+        <section class="section-card" id="roomDimensions" aria-labelledby="roomHeading">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Step 2</p>
+              <h2 id="roomHeading">Room Dimensions</h2>
+            </div>
+            <button class="secondary-button" type="button" id="copyFirstRoomButton">Copy first room</button>
+          </div>
+          <div id="roomGrid" class="room-grid" aria-live="polite"></div>
+        </section>
+
+        <section class="section-card" id="materialInputs" aria-labelledby="materialHeading">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Step 3</p>
+              <h2 id="materialHeading">Material Inputs</h2>
+            </div>
+            <span class="section-badge">Editable</span>
+          </div>
+
+          <div class="subsection">
+            <h3>Concrete Mix Ratio</h3>
+            <div class="input-grid three">
+              <label>
+                <span>Cement ratio</span>
+                <input id="cementRatio" type="number" min="0.1" step="0.1" value="1">
+              </label>
+              <label>
+                <span>Sand ratio</span>
+                <input id="sandRatio" type="number" min="0.1" step="0.1" value="1.5">
+              </label>
+              <label>
+                <span>Aggregate ratio</span>
+                <input id="aggregateRatio" type="number" min="0.1" step="0.1" value="3">
+              </label>
+            </div>
+          </div>
+
+          <div class="subsection">
+            <h3>Masonry / Brick Details</h3>
+            <div class="input-grid three">
+              <label>
+                <span>Brick length</span>
+                <div class="unit-input">
+                  <input id="brickLength" type="number" min="1" step="0.5" value="19">
+                  <span>cm</span>
+                </div>
+              </label>
+              <label>
+                <span>Brick width</span>
+                <div class="unit-input">
+                  <input id="brickWidth" type="number" min="1" step="0.5" value="9">
+                  <span>cm</span>
+                </div>
+              </label>
+              <label>
+                <span>Brick height</span>
+                <div class="unit-input">
+                  <input id="brickHeight" type="number" min="1" step="0.5" value="9">
+                  <span>cm</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="subsection">
+            <h3>Plaster, Flooring &amp; Openings</h3>
+            <div class="input-grid four">
+              <label>
+                <span>Plaster thickness</span>
+                <div class="unit-input">
+                  <input id="plasterThickness" type="number" min="1" step="1" value="12">
+                  <span>mm</span>
+                </div>
+              </label>
+              <label>
+                <span>Flooring thickness</span>
+                <div class="unit-input">
+                  <input id="flooringThickness" type="number" min="1" step="1" value="25">
+                  <span>mm</span>
+                </div>
+              </label>
+              <label>
+                <span>Door area per room</span>
+                <div class="unit-input">
+                  <input id="doorArea" type="number" min="0" step="0.1" value="2">
+                  <span>m2</span>
+                </div>
+              </label>
+              <label>
+                <span>Window area per room</span>
+                <div class="unit-input">
+                  <input id="windowArea" type="number" min="0" step="0.1" value="1.5">
+                  <span>m2</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <details class="subsection optional-materials">
+            <summary>Optional other materials</summary>
+            <p class="helper-text">Use these only when your project includes additional quantities beyond the room-based estimate.</p>
+            <div class="input-grid five">
+              <label>
+                <span>New timber</span>
+                <div class="unit-input">
+                  <input id="newTimberQty" type="number" min="0" step="1" value="0">
+                  <span>kg</span>
+                </div>
+              </label>
+              <label>
+                <span>Aluminium</span>
+                <div class="unit-input">
+                  <input id="aluminiumQty" type="number" min="0" step="1" value="0">
+                  <span>kg</span>
+                </div>
+              </label>
+              <label>
+                <span>Glass</span>
+                <div class="unit-input">
+                  <input id="glassQty" type="number" min="0" step="0.1" value="0">
+                  <span>m2</span>
+                </div>
+              </label>
+              <label>
+                <span>Pavers</span>
+                <div class="unit-input">
+                  <input id="paverQty" type="number" min="0" step="0.1" value="0">
+                  <span>m2</span>
+                </div>
+              </label>
+              <label>
+                <span>Asphalt</span>
+                <div class="unit-input">
+                  <input id="asphaltQty" type="number" min="0" step="0.1" value="0">
+                  <span>m2</span>
+                </div>
+              </label>
+            </div>
+          </details>
+        </section>
+
+        <section class="section-card" id="advancedSettings" aria-labelledby="advancedHeading">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Step 4</p>
+              <h2 id="advancedHeading">Advanced Assumptions</h2>
+            </div>
+            <span class="section-badge">Preliminary</span>
+          </div>
+          <details open>
+            <summary>Show calculation assumptions</summary>
+            <div id="assumptionGrid" class="input-grid four compact"></div>
+          </details>
+        </section>
+
+        <section class="section-card" id="materialRates" aria-labelledby="ratesHeading">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Step 5</p>
+              <h2 id="ratesHeading">Material Rates &amp; Carbon Factors</h2>
+            </div>
+            <button class="secondary-button" type="button" id="resetRatesButton">Reset rates</button>
+          </div>
+          <p class="helper-text">Illustrative/local market rates - update before use. These values are stored in the browser for this demo.</p>
+          <div class="table-wrap">
+            <table id="materialRateTable">
+              <caption>Editable conventional material database</caption>
+            </table>
+          </div>
+        </section>
+
+        <div class="action-row">
+          <button class="primary-button" type="button" id="calculateButton">Calculate materials</button>
+          <button class="secondary-button" type="button" id="resetFormButton">Reset inputs</button>
+          <p id="errorMessage" class="error-message" role="alert"></p>
+        </div>
+
+        <section class="results-section" id="results" aria-labelledby="resultsHeading">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Step 6</p>
+              <h2 id="resultsHeading">Construction Material &amp; Sustainability Comparison</h2>
+            </div>
+            <button class="secondary-button" type="button" id="downloadReportButton" disabled>Download report</button>
+          </div>
+
+          <div id="emptyResults" class="empty-results">
+            <strong>No estimate calculated yet.</strong>
+            <span>Complete the dimensions and select Calculate materials to generate the comparison table, cost summary, and carbon breakdown.</span>
+          </div>
+
+          <div id="resultsContent" hidden>
+            <div class="result-warning">
+              Embodied carbon values are estimates and vary by product, manufacturer, recycled content, transportation distance, and production method. Potential alternatives must be checked for technical suitability before construction.
+            </div>
+            <div class="table-wrap wide">
+              <table id="comparisonTable">
+                <caption>Conventional and sustainable alternative comparison</caption>
+              </table>
+            </div>
+            <div id="summaryGrid" class="summary-grid"></div>
+            <div class="breakdown-grid">
+              <section class="mini-section" aria-labelledby="costBreakdownHeading">
+                <h3 id="costBreakdownHeading">Cost Breakdown</h3>
+                <div id="costBreakdown" class="bars"></div>
+              </section>
+              <section class="mini-section" aria-labelledby="carbonBreakdownHeading">
+                <h3 id="carbonBreakdownHeading">Carbon Breakdown</h3>
+                <div id="carbonBreakdown" class="bars carbon"></div>
+                <p id="topCarbonContributor" class="helper-text"></p>
+              </section>
+            </div>
+            <details class="details-panel">
+              <summary>View Detailed Material Quantities</summary>
+              <div class="table-wrap wide">
+                <table id="quantityTable">
+                  <caption>Detailed quantities, rates, costs, and embodied carbon</caption>
+                </table>
+              </div>
+            </details>
+            <details class="details-panel">
+              <summary>Assumptions used</summary>
+              <div id="usedAssumptions" class="assumption-list"></div>
+            </details>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <dialog id="adminDialog" class="admin-dialog">
+    <form method="dialog" class="dialog-shell">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Restricted area prototype</p>
+          <h2>Admin Settings</h2>
+        </div>
+        <button class="icon-button" value="close" aria-label="Close admin settings" title="Close">x</button>
+      </div>
+      <p class="helper-text">
+        This static demo keeps admin tools behind this modal for review. A production public website should connect this screen to authenticated server-side roles and a database.
+      </p>
+      <div class="input-grid two">
+        <label>
+          <span>Admin code</span>
+          <input id="adminCode" type="password" placeholder="Enter demo code">
+          <small>Demo code: ECOBUILD</small>
+        </label>
+        <button class="primary-button align-end" type="button" id="unlockAdminButton">Unlock demo admin</button>
+      </div>
+      <div id="adminPanel" hidden>
+        <div class="table-wrap">
+          <table id="adminAlternativeTable">
+            <caption>Alternative material database</caption>
+          </table>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <footer class="site-footer">
+    <p>
+      This calculator provides preliminary construction quantity, cost and embodied-carbon estimates for planning and educational purposes. It is not a substitute for structural design, detailed quantity surveying, approved specifications, professional engineering judgement, or current local market rates. Structural member sizes and reinforcement quantities must be verified by a qualified civil/structural engineer before construction.
+    </p>
+  </footer>
+</body>
+</html>
