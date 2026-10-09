@@ -5,7 +5,12 @@ const STORAGE_KEY = "ecobuild-demo-state-v1";
 const defaultAssumptions = {
   beamWidth: 0.23,
   beamDepth: 0.3,
-  columnSize: 0.23,
+  columnWidth: 0.23,
+  columnDepth: 0.23,
+  slabThickness: 0.125,
+  plasterThickness: 12,
+  doorArea: 2,
+  windowArea: 1.5,
   sharedBeamFactor: 0.75,
   dryVolumeFactor: 1.54,
   cementDensity: 1440,
@@ -28,9 +33,14 @@ const defaultAssumptions = {
 };
 
 const assumptionLabels = {
-  beamWidth: "Beam width (m)",
-  beamDepth: "Beam depth (m)",
-  columnSize: "Column size (m)",
+  beamWidth: "Assumed beam width (mm)",
+  beamDepth: "Assumed beam depth (mm)",
+  columnWidth: "Assumed column width (mm)",
+  columnDepth: "Assumed column depth (mm)",
+  slabThickness: "Assumed slab thickness (mm)",
+  plasterThickness: "Assumed plaster thickness (mm)",
+  doorArea: "Assumed door area per room (m²; 1 door)",
+  windowArea: "Assumed window area per room (m²; 1 window)",
   sharedBeamFactor: "Shared beam factor",
   dryVolumeFactor: "Concrete dry volume factor",
   cementDensity: "Cement density (kg/m3)",
@@ -284,6 +294,44 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+// The calculation model stores lengths in metres, while the assumptions UI
+// presents building dimensions in millimetres to match normal construction practice.
+const millimetreAssumptions = new Set([
+  "beamWidth",
+  "beamDepth",
+  "columnWidth",
+  "columnDepth",
+  "slabThickness"
+]);
+
+function assumptionValueForDisplay(key, value) {
+  return millimetreAssumptions.has(key) ? Number(value) * 1000 : Number(value);
+}
+
+function assumptionValueFromDisplay(key, value) {
+  return millimetreAssumptions.has(key) ? Number(value) / 1000 : Number(value);
+}
+
+function normalizeAssumptions(saved = {}) {
+  const normalized = { ...clone(defaultAssumptions), ...(saved || {}) };
+
+  // Migrate saved browser data from versions that stored one square columnSize.
+  if (saved.columnWidth == null && Number.isFinite(Number(saved.columnSize))) {
+    normalized.columnWidth = Number(saved.columnSize);
+  }
+  if (saved.columnDepth == null && Number.isFinite(Number(saved.columnSize))) {
+    normalized.columnDepth = Number(saved.columnSize);
+  }
+  delete normalized.columnSize;
+
+  for (const [key, defaultValue] of Object.entries(defaultAssumptions)) {
+    const value = Number(normalized[key]);
+    if (!Number.isFinite(value) || value < 0) normalized[key] = defaultValue;
+    else normalized[key] = value;
+  }
+  return normalized;
+}
+
 function clampInt(value, min, max) {
   return Math.max(min, Math.min(max, Math.round(Number(value) || min)));
 }
@@ -330,9 +378,53 @@ function calculateBeamVolume(length, settings) {
   return length * settings.beamWidth * settings.beamDepth;
 }
 
-function calculateColumnVolume(columnsPerStorey, storeyHeights, settings) {
+function estimateColumnGrid(rooms, storeys) {
+  // The input form does not capture room coordinates. For a transparent
+  // preliminary estimate, each storey's rooms are assumed to be arranged
+  // sequentially in one row, with front and rear column grid lines.
+  // Shared room-boundary intersections are deduplicated by their coordinates.
+  const xGrid = new Set();
+  let maximumBuildingWidth = 0;
+
+  for (let storey = 1; storey <= storeys; storey += 1) {
+    const floorRooms = rooms
+      .filter((room) => room.storey === storey)
+      .sort((a, b) => a.room - b.room);
+
+    let runningLength = 0;
+    xGrid.add((0).toFixed(3));
+
+    for (const room of floorRooms) {
+      runningLength += Math.max(0, Number(room.length) || 0);
+      xGrid.add(runningLength.toFixed(3));
+      maximumBuildingWidth = Math.max(
+        maximumBuildingWidth,
+        Math.max(0, Number(room.width) || 0)
+      );
+    }
+  }
+
+  const xCoordinates = [...xGrid].map(Number).sort((a, b) => a - b);
+  const yCoordinates = [...new Set([0, maximumBuildingWidth].map((value) => Number(value.toFixed(3))))];
+  const intersections = new Set();
+
+  for (const x of xCoordinates) {
+    for (const y of yCoordinates) {
+      intersections.add(`${x.toFixed(3)}|${y.toFixed(3)}`);
+    }
+  }
+
+  return {
+    count: intersections.size,
+    xCoordinates,
+    yCoordinates,
+    intersections: [...intersections]
+  };
+}
+
+function calculateColumnVolume(columnCount, storeyHeights, settings) {
   const totalHeight = storeyHeights.reduce((sum, height) => sum + height, 0);
-  return columnsPerStorey * settings.columnSize * settings.columnSize * totalHeight;
+  return columnCount * settings.columnWidth * settings.columnDepth * totalHeight;
 }
 
 function calculateConcreteVolume(parts) {
@@ -407,7 +499,7 @@ function calculateEstimate(input) {
   let slabArea = 0;
   let wallArea = 0;
   let beamLength = 0;
-  const openingAreaPerRoom = input.doorArea + input.windowArea;
+  const openingAreaPerRoom = assumptions.doorArea + assumptions.windowArea;
 
   for (const room of input.rooms) {
     const sharedFactor = input.roomsPerStorey > 1 ? assumptions.sharedBeamFactor : 1;
@@ -420,13 +512,15 @@ function calculateEstimate(input) {
     .filter((room) => room.storey === 1)
     .reduce((sum, room) => sum + calculateRoomArea(room), 0);
 
-  const slabVolume = calculateSlabVolume(slabArea, input.slabThickness);
+  const slabVolume = calculateSlabVolume(slabArea, assumptions.slabThickness);
   const beamVolume = calculateBeamVolume(beamLength, assumptions);
-  const columnVolume = calculateColumnVolume(input.columnsPerStorey, storeyHeights, assumptions);
+  const columnGrid = estimateColumnGrid(input.rooms, input.storeys);
+  const columnsPerStorey = columnGrid.count;
+  const columnVolume = calculateColumnVolume(columnsPerStorey, storeyHeights, assumptions);
   const foundationVolume = footprintArea * assumptions.foundationConcretePerSqm;
   const concreteVolume = calculateConcreteVolume({ slabVolume, beamVolume, columnVolume, foundationVolume });
   const concreteMix = calculateConcreteMix(concreteVolume, input.mix, assumptions);
-  const plaster = calculatePlasterQuantity(wallArea * 2, input.plasterThickness, assumptions);
+  const plaster = calculatePlasterQuantity(wallArea * 2, assumptions.plasterThickness, assumptions);
   const flooring = calculateFlooringQuantity(slabArea, input.flooringThickness, assumptions);
   const brickQuantity = calculateBrickQuantity(wallArea, input.brick, assumptions);
   const steelQuantity = calculateSteelQuantity({ slabVolume, beamVolume, columnVolume, foundationVolume }, assumptions);
@@ -518,6 +612,9 @@ function calculateEstimate(input) {
     slabVolume,
     beamVolume,
     columnVolume,
+    columnsPerStorey,
+    uniqueColumnCount: columnGrid.count,
+    columnGrid,
     foundationVolume,
     concreteVolume,
     plaster,
@@ -618,17 +715,41 @@ function roomInput(index, key, label) {
 }
 
 function renderAssumptions() {
-  id("assumptionGrid").innerHTML = Object.entries(assumptionLabels).map(([key, label]) => `
-    <label>
-      <span>${label}</span>
-      <input type="number" step="any" min="0" value="${assumptions[key]}" data-assumption="${key}">
-    </label>
-  `).join("");
+  assumptions = normalizeAssumptions(assumptions);
+
+  id("assumptionGrid").innerHTML = Object.entries(assumptionLabels).map(([key, label]) => {
+    const displayValue = assumptionValueForDisplay(key, assumptions[key]);
+    return `
+      <label>
+        <span>${label}</span>
+        <input
+          type="number"
+          step="any"
+          min="0"
+          value="${displayValue}"
+          data-assumption="${key}"
+        >
+      </label>
+    `;
+  }).join("");
 
   id("assumptionGrid").querySelectorAll("input").forEach((input) => {
+    const key = input.dataset.assumption;
+
     input.addEventListener("input", () => {
-      assumptions[input.dataset.assumption] = Number(input.value);
+      if (input.value.trim() === "") return;
+      const displayedValue = Number(input.value);
+      if (!Number.isFinite(displayedValue) || displayedValue < 0) return;
+
+      assumptions[key] = assumptionValueFromDisplay(key, displayedValue);
       saveState();
+      if (lastResult) calculateAndRender();
+    });
+
+    input.addEventListener("change", () => {
+      if (input.value.trim() === "" || !Number.isFinite(Number(input.value)) || Number(input.value) < 0) {
+        input.value = assumptionValueForDisplay(key, assumptions[key]);
+      }
     });
   });
 }
@@ -715,21 +836,16 @@ function readInputs() {
   const required = [
     readNumber("storeys", { min: 0, label: "Number of storeys" }),
     readNumber("roomsPerStorey", { min: 0, label: "Rooms per storey" }),
-    readNumber("slabThickness", { min: 0, label: "Slab thickness" }),
-    readNumber("columnsPerStorey", { min: 0, label: "Columns per storey" }),
     readNumber("cementRatio", { min: 0, label: "Cement ratio" }),
     readNumber("sandRatio", { min: 0, label: "Sand ratio" }),
     readNumber("aggregateRatio", { min: 0, label: "Aggregate ratio" }),
     readNumber("brickLength", { min: 0, label: "Brick length" }),
     readNumber("brickWidth", { min: 0, label: "Brick width" }),
     readNumber("brickHeight", { min: 0, label: "Brick height" }),
-    readNumber("plasterThickness", { min: 0, label: "Plaster thickness" }),
     readNumber("flooringThickness", { min: 0, label: "Flooring thickness" })
   ];
 
   const nonNegative = [
-    readNumber("doorArea", { min: 0, allowZero: true, label: "Door area" }),
-    readNumber("windowArea", { min: 0, allowZero: true, label: "Window area" }),
     readNumber("newTimberQty", { min: 0, allowZero: true, label: "New timber" }),
     readNumber("aluminiumQty", { min: 0, allowZero: true, label: "Aluminium" }),
     readNumber("glassQty", { min: 0, allowZero: true, label: "Glass" }),
@@ -758,11 +874,6 @@ function readInputs() {
       projectLocation: id("projectLocation").value.trim() || "Not specified",
       storeys: Number(id("storeys").value),
       roomsPerStorey: Number(id("roomsPerStorey").value),
-      slabThickness: Number(id("slabThickness").value),
-      columnsPerStorey: Number(id("columnsPerStorey").value),
-      doorArea: Number(id("doorArea").value),
-      windowArea: Number(id("windowArea").value),
-      plasterThickness: Number(id("plasterThickness").value),
       flooringThickness: Number(id("flooringThickness").value),
       rooms: clone(rooms),
       mix: {
@@ -955,6 +1066,8 @@ function renderUsedAssumptions(result) {
     `Slab volume: ${number(result.slabVolume, 2)} m3`,
     `Beam volume: ${number(result.beamVolume, 2)} m3`,
     `Column volume: ${number(result.columnVolume, 2)} m3`,
+    `Estimated unique column grid intersections: ${number(result.uniqueColumnCount, 0)} (rooms assumed sequentially in one row; shared boundary intersections counted once)`,
+    `Standard column dimensions assumed: ${number(assumptions.columnWidth * 1000, 0)} × ${number(assumptions.columnDepth * 1000, 0)} mm; confirm with structural design.`,
     `Foundation volume: ${number(result.foundationVolume, 2)} m3`,
     `Preliminary beam length based on room geometry: ${number(result.beamLength, 1)} m`,
     `Net wall area: ${number(result.wallArea, 1)} m2`,
@@ -962,7 +1075,11 @@ function renderUsedAssumptions(result) {
     `Flooring bed volume: ${number(result.flooring.wetVolume, 2)} m3`,
     `Steel intensities are estimating assumptions, not reinforcement design.`
   ];
-  const assumptionItems = Object.entries(assumptionLabels).map(([key, label]) => `${label}: ${assumptions[key]}`);
+  const assumptionItems = Object.entries(assumptionLabels).map(([key, label]) => {
+    const value = assumptionValueForDisplay(key, assumptions[key]);
+    const precision = millimetreAssumptions.has(key) ? 0 : 3;
+    return `${label}: ${number(value, precision)}`;
+  });
   id("usedAssumptions").innerHTML = [...items, ...assumptionItems].map((item) => `<span>${item}</span>`).join("");
 }
 
@@ -971,23 +1088,21 @@ function resetInputs() {
   id("projectLocation").value = "Local market demo";
   id("storeys").value = 2;
   id("roomsPerStorey").value = 2;
-  id("slabThickness").value = 0.125;
-  id("columnsPerStorey").value = 4;
   id("cementRatio").value = 1;
   id("sandRatio").value = 1.5;
   id("aggregateRatio").value = 3;
   id("brickLength").value = 19;
   id("brickWidth").value = 9;
   id("brickHeight").value = 9;
-  id("plasterThickness").value = 12;
   id("flooringThickness").value = 25;
-  id("doorArea").value = 2;
-  id("windowArea").value = 1.5;
   id("newTimberQty").value = 0;
   id("aluminiumQty").value = 0;
   id("glassQty").value = 0;
   id("paverQty").value = 0;
   id("asphaltQty").value = 0;
+  // Reset the main project inputs but preserve any custom advanced assumptions.
+  assumptions = normalizeAssumptions(assumptions);
+  renderAssumptions();
   rooms = [];
   syncRoomsFromControls();
   lastResult = null;
@@ -1055,9 +1170,9 @@ function saveState() {
 
 function collectFieldValues() {
   const fieldIds = [
-    "projectName", "projectLocation", "storeys", "roomsPerStorey", "slabThickness", "columnsPerStorey",
+    "projectName", "projectLocation", "storeys", "roomsPerStorey",
     "cementRatio", "sandRatio", "aggregateRatio", "brickLength", "brickWidth", "brickHeight",
-    "plasterThickness", "flooringThickness", "doorArea", "windowArea", "newTimberQty", "aluminiumQty",
+    "flooringThickness", "newTimberQty", "aluminiumQty",
     "glassQty", "paverQty", "asphaltQty"
   ];
   return Object.fromEntries(fieldIds.map((fieldId) => [fieldId, id(fieldId).value]));
@@ -1078,7 +1193,7 @@ function loadState() {
     const state = JSON.parse(raw);
     materials = state.materials || clone(materialSeed);
     alternatives = state.alternatives || clone(alternativeSeed);
-    assumptions = { ...clone(defaultAssumptions), ...(state.assumptions || {}) };
+    assumptions = normalizeAssumptions(state.assumptions || {});
     rooms = state.rooms || [];
     selectedAlternatives = state.selectedAlternatives || {};
     hydrateFields(state.fields);
