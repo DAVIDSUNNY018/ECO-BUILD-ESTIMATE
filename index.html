@@ -99,18 +99,6 @@
               <span>Rooms per storey</span>
               <input id="roomsPerStorey" type="number" min="1" max="12" step="1" value="2">
             </label>
-            <label>
-              <span>Slab thickness</span>
-              <div class="unit-input">
-                <input id="slabThickness" type="number" min="0.05" step="0.005" value="0.125">
-                <span>m</span>
-              </div>
-            </label>
-            <label>
-              <span>Columns per storey</span>
-              <input id="columnsPerStorey" type="number" min="1" step="1" value="4">
-              <small>Editable preliminary assumption.</small>
-            </label>
           </div>
         </section>
 
@@ -183,31 +171,10 @@
             <h3>Plaster, Flooring &amp; Openings</h3>
             <div class="input-grid four">
               <label>
-                <span>Plaster thickness</span>
-                <div class="unit-input">
-                  <input id="plasterThickness" type="number" min="1" step="1" value="12">
-                  <span>mm</span>
-                </div>
-              </label>
-              <label>
                 <span>Flooring thickness</span>
                 <div class="unit-input">
                   <input id="flooringThickness" type="number" min="1" step="1" value="25">
                   <span>mm</span>
-                </div>
-              </label>
-              <label>
-                <span>Door area per room</span>
-                <div class="unit-input">
-                  <input id="doorArea" type="number" min="0" step="0.1" value="2">
-                  <span>m2</span>
-                </div>
-              </label>
-              <label>
-                <span>Window area per room</span>
-                <div class="unit-input">
-                  <input id="windowArea" type="number" min="0" step="0.1" value="1.5">
-                  <span>m2</span>
                 </div>
               </label>
             </div>
@@ -256,34 +223,44 @@
           </details>
         </section>
 
-        <section class="section-card" id="advancedSettings" aria-labelledby="advancedHeading">
-          <div class="section-heading">
-            <div>
-              <p class="section-kicker">Step 4</p>
-              <h2 id="advancedHeading">Advanced Assumptions</h2>
+        <section class="section-card accordion-card" id="advancedSettings" aria-labelledby="advancedHeading">
+          <details class="section-accordion">
+            <summary class="section-heading accordion-heading">
+              <span class="accordion-title">
+                <span class="section-kicker">Step 4</span>
+                <span class="accordion-heading-text" id="advancedHeading" role="heading" aria-level="2">Advanced Assumptions</span>
+                <span class="section-badge">Preliminary · edit assumed factors</span>
+              </span>
+            </summary>
+            <div class="accordion-content">
+              <p class="helper-text">These preliminary dimensions and factors are used automatically in the estimate. Changes recalculate the current results.</p>
+              <div id="assumptionGrid" class="input-grid four compact"></div>
             </div>
-            <span class="section-badge">Preliminary</span>
-          </div>
-          <details open>
-            <summary>Show calculation assumptions</summary>
-            <div id="assumptionGrid" class="input-grid four compact"></div>
           </details>
         </section>
 
-        <section class="section-card" id="materialRates" aria-labelledby="ratesHeading">
-          <div class="section-heading">
-            <div>
-              <p class="section-kicker">Step 5</p>
-              <h2 id="ratesHeading">Material Rates &amp; Carbon Factors</h2>
+        <section class="section-card accordion-card" id="materialRates" aria-labelledby="ratesHeading">
+          <details class="section-accordion">
+            <summary class="section-heading accordion-heading">
+              <span class="accordion-title">
+                <span class="section-kicker">Step 5</span>
+                <span class="accordion-heading-text" id="ratesHeading" role="heading" aria-level="2">Material Rates &amp; Carbon Factors</span>
+                <span class="section-badge">Editable database</span>
+              </span>
+            </summary>
+            <div class="accordion-content">
+              <div class="accordion-actions">
+                <p class="helper-text">Illustrative/local market rates - update before use. These values are stored in your browser for this demo.</p>
+                <button class="secondary-button" type="button" id="resetRatesButton">Reset rates</button>
+              </div>
+              <p class="helper-text">Edit local rates and embodied-carbon factors here. Values are illustrative and should be verified for your project.</p>
+              <div class="table-wrap">
+                <table id="materialRateTable">
+                  <caption>Editable conventional material database</caption>
+                </table>
+              </div>
             </div>
-            <button class="secondary-button" type="button" id="resetRatesButton">Reset rates</button>
-          </div>
-          <p class="helper-text">Illustrative/local market rates - update before use. These values are stored in the browser for this demo.</p>
-          <div class="table-wrap">
-            <table id="materialRateTable">
-              <caption>Editable conventional material database</caption>
-            </table>
-          </div>
+          </details>
         </section>
 
         <div class="action-row">
