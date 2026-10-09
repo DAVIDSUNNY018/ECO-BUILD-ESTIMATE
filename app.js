@@ -1088,7 +1088,12 @@ function loadState() {
 }
 
 function bindEvents() {
-  ["storeys", "roomsPerStorey"].forEach((fieldId) => id(fieldId).addEventListener("input", syncRoomsFromControls));
+  // Update room sections after the user finishes editing either number field.
+  ["storeys", "roomsPerStorey"].forEach((fieldId) => {
+    const field = id(fieldId);
+    field.addEventListener("change", syncRoomsFromControls);
+    field.addEventListener("blur", syncRoomsFromControls);
+  });
   id("copyFirstRoomButton").addEventListener("click", copyFirstRoom);
   id("calculateButton").addEventListener("click", calculateAndRender);
   id("resetFormButton").addEventListener("click", resetInputs);
