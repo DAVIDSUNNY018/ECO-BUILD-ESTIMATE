@@ -886,3 +886,125 @@ tbody tr:last-child td {
     overflow: visible;
   }
 }
+
+
+/* Accessible accordion sections for assumptions and material-rate controls. */
+.accordion-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.section-accordion {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.section-accordion > .accordion-heading {
+  list-style: none;
+  cursor: pointer;
+  padding: 22px;
+  margin: 0;
+  align-items: center;
+  transition: background 0.16s ease;
+}
+
+.section-accordion > .accordion-heading::-webkit-details-marker {
+  display: none;
+}
+
+.section-accordion > .accordion-heading::after {
+  content: "+";
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  color: var(--blue-strong);
+  font-size: 1.3rem;
+  line-height: 1;
+  font-weight: 700;
+  order: 3;
+}
+
+.section-accordion[open] > .accordion-heading {
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--line);
+}
+
+.section-accordion[open] > .accordion-heading::after {
+  content: "−";
+}
+
+.accordion-title {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.accordion-title .section-badge {
+  display: table;
+  margin-top: 8px;
+}
+
+.accordion-heading-text {
+  display: block;
+  color: var(--blue-strong);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.accordion-content {
+  padding: 20px 22px 22px;
+}
+
+.accordion-content > :first-child {
+  margin-top: 0;
+}
+
+.accordion-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.accordion-actions .helper-text {
+  margin: 0;
+}
+
+#materialRates .table-wrap {
+  margin-top: 12px;
+}
+
+@media (max-width: 720px) {
+  .section-accordion > .accordion-heading {
+    padding: 18px;
+    gap: 10px;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .accordion-title {
+    flex: 1 1 auto;
+    width: auto;
+  }
+
+  .accordion-content {
+    padding: 16px;
+  }
+
+  .accordion-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .accordion-actions .secondary-button {
+    width: 100%;
+  }
+}
