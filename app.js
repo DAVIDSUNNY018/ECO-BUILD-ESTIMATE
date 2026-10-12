@@ -275,6 +275,71 @@ function alt(id, replaces, name, unit, quantityFactor, price, carbonFactor, appl
   };
 }
 
+const defaultLabourAssumptions = {
+  excavationFactor: 1.8,
+  masonryWallThickness: 0.23
+};
+
+// Illustrative labour-only rates in INR. These exclude material costs,
+// machinery/transport hire, scaffolding rental, contractor overheads and taxes.
+const labourRateSeed = [
+  { id: "excavation", label: "Excavation & foundation earthwork", unit: "m³", conventionalRate: 450, sustainableRate: 475, quantitySource: "excavationVolume", note: "Foundation excavation allowance; foundation RCC placement is included in RCC work." },
+  { id: "rccPlacement", label: "RCC mixing / placing / vibrating / curing", unit: "m³", conventionalRate: 1100, sustainableRate: 1150, quantitySource: "concreteVolume", note: "Labour only; excludes reinforcement fixing and shuttering, listed separately." },
+  { id: "steelFixing", label: "Reinforcement cutting, bending & fixing", unit: "kg", conventionalRate: 12, sustainableRate: 13, quantitySource: "steelQuantity", note: "Labour only; steel supply is counted in material cost." },
+  { id: "formwork", label: "Shuttering / formwork erection & removal", unit: "m²", conventionalRate: 250, sustainableRate: 265, quantitySource: "formworkArea", note: "Labour only; formwork material/rental is excluded." },
+  { id: "masonry", label: "Brick / block masonry", unit: "m³", conventionalRate: 1800, sustainableRate: 1900, quantitySource: "masonryVolume", note: "Labour only; excludes masonry material and plastering." },
+  { id: "internalPlaster", label: "Internal plastering", unit: "m²", conventionalRate: 110, sustainableRate: 118, quantitySource: "plasterArea", note: "Based on estimated net room wall area; finish coats are separate." },
+  { id: "externalPlaster", label: "External plastering", unit: "m²", conventionalRate: 135, sustainableRate: 145, quantitySource: "plasterArea", note: "Preliminary exposed-wall allowance; actual facade geometry may differ." },
+  { id: "flooring", label: "Internal flooring installation", unit: "m²", conventionalRate: 160, sustainableRate: 175, quantitySource: "flooringArea", note: "Labour only; flooring material and screed material are excluded." },
+  { id: "painting", label: "Painting (walls and ceilings)", unit: "m²", conventionalRate: 35, sustainableRate: 38, quantitySource: "paintingArea", note: "Labour only; paint/material supply is excluded." },
+  { id: "siteHandling", label: "General site handling & cleanup", unit: "m²", conventionalRate: 25, sustainableRate: 28, quantitySource: "siteArea", note: "An allowance for basic handling/cleanup, not a percentage of contract value." },
+  { id: "paverLaying", label: "External paver installation", unit: "m²", conventionalRate: 180, sustainableRate: 195, quantitySource: "paverQuantity", optional: true, note: "Included only when optional paver area is entered." },
+  { id: "asphaltLaying", label: "Asphalt laying", unit: "m²", conventionalRate: 120, sustainableRate: 132, quantitySource: "asphaltQuantity", optional: true, note: "Included only when optional asphalt area is entered." },
+  { id: "glassGlazing", label: "Glass glazing / installation", unit: "m²", conventionalRate: 250, sustainableRate: 270, quantitySource: "glassQuantity", optional: true, note: "Included only when optional glass area is entered." },
+  { id: "aluminiumFit", label: "Aluminium frame fitting", unit: "kg", conventionalRate: 40, sustainableRate: 43, quantitySource: "aluminiumQuantity", optional: true, note: "Weight-based preliminary allowance; supplier installation quotes are preferred." },
+  { id: "timberFit", label: "Timber / bamboo fitting", unit: "kg", conventionalRate: 25, sustainableRate: 28, quantitySource: "timberQuantity", optional: true, note: "Weight-based preliminary allowance; joinery complexity is not modeled." }
+];
+
+// Alternative-specific productivity factors. 1.00 means no adjustment to the
+// editable sustainable base rate. If more than one chosen material affects the
+// same activity, active factors are averaged rather than multiplied together.
+const labourProductivitySeed = [
+  { id: "ppc-rcc", materialId: "opc", alternativeId: "ppc", activityId: "rccPlacement", factor: 0.98 },
+  { id: "psc-rcc", materialId: "opc", alternativeId: "psc", activityId: "rccPlacement", factor: 1.01 },
+  { id: "lc3-rcc", materialId: "opc", alternativeId: "lc3", activityId: "rccPlacement", factor: 1.03 },
+  { id: "ggbs-rcc", materialId: "opc", alternativeId: "ggbs", activityId: "rccPlacement", factor: 1.04 },
+  { id: "flyashblend-rcc", materialId: "opc", alternativeId: "flyAshBlend", activityId: "rccPlacement", factor: 1.03 },
+  { id: "calcinedclay-rcc", materialId: "opc", alternativeId: "calcinedClay", activityId: "rccPlacement", factor: 1.04 },
+  { id: "m-sand-rcc", materialId: "naturalSand", alternativeId: "mSand", activityId: "rccPlacement", factor: 1.03 },
+  { id: "recycled-sand-rcc", materialId: "naturalSand", alternativeId: "recycledFineAggregate", activityId: "rccPlacement", factor: 1.06 },
+  { id: "recycled-aggregate-rcc", materialId: "naturalCoarseAggregate", alternativeId: "recycledCoarseAggregate", activityId: "rccPlacement", factor: 1.04 },
+  { id: "recycled-concrete-aggregate-rcc", materialId: "naturalCoarseAggregate", alternativeId: "recycledConcreteAggregate", activityId: "rccPlacement", factor: 1.05 },
+  { id: "highrecycled-steel", materialId: "conventionalSteel", alternativeId: "highRecycledSteel", activityId: "steelFixing", factor: 1.01 },
+  { id: "eaf-steel", materialId: "conventionalSteel", alternativeId: "eafSteel", activityId: "steelFixing", factor: 1.02 },
+  { id: "flyash-masonry", materialId: "burntClayBrick", alternativeId: "flyAshBrick", activityId: "masonry", factor: 0.96 },
+  { id: "aac-masonry", materialId: "burntClayBrick", alternativeId: "aacBlock", activityId: "masonry", factor: 0.80 },
+  { id: "clc-masonry", materialId: "burntClayBrick", alternativeId: "clcBlock", activityId: "masonry", factor: 0.86 },
+  { id: "ceb-masonry", materialId: "burntClayBrick", alternativeId: "compressedEarthBlock", activityId: "masonry", factor: 1.10 },
+  { id: "stabilized-earth-masonry", materialId: "burntClayBrick", alternativeId: "stabilizedEarthBlock", activityId: "masonry", factor: 1.06 },
+  { id: "aac-internal-plaster", materialId: "burntClayBrick", alternativeId: "aacBlock", activityId: "internalPlaster", factor: 1.08 },
+  { id: "clc-internal-plaster", materialId: "burntClayBrick", alternativeId: "clcBlock", activityId: "internalPlaster", factor: 1.06 },
+  { id: "ceb-internal-plaster", materialId: "burntClayBrick", alternativeId: "compressedEarthBlock", activityId: "internalPlaster", factor: 1.10 },
+  { id: "aac-external-plaster", materialId: "burntClayBrick", alternativeId: "aacBlock", activityId: "externalPlaster", factor: 1.12 },
+  { id: "clc-external-plaster", materialId: "burntClayBrick", alternativeId: "clcBlock", activityId: "externalPlaster", factor: 1.08 },
+  { id: "ceb-external-plaster", materialId: "burntClayBrick", alternativeId: "compressedEarthBlock", activityId: "externalPlaster", factor: 1.14 },
+  { id: "recycled-paver-install", materialId: "conventionalConcretePaver", alternativeId: "recycledPavers", activityId: "paverLaying", factor: 1.04 },
+  { id: "cd-roadbase-install", materialId: "conventionalConcretePaver", alternativeId: "cdRoadBase", activityId: "paverLaying", factor: 0.78 },
+  { id: "reclaimed-asphalt-install", materialId: "conventionalAsphalt", alternativeId: "reclaimedAsphalt", activityId: "asphaltLaying", factor: 0.96 },
+  { id: "bamboo-fitting", materialId: "newTimber", alternativeId: "bamboo", activityId: "timberFit", factor: 1.10 },
+  { id: "reclaimed-timber-fitting", materialId: "newTimber", alternativeId: "reclaimedTimber", activityId: "timberFit", factor: 1.05 },
+  { id: "recycled-aluminium-fitting", materialId: "conventionalAluminium", alternativeId: "recycledAluminium", activityId: "aluminiumFit", factor: 1.02 },
+  { id: "recycled-glass-install", materialId: "conventionalGlass", alternativeId: "recycledGlass", activityId: "glassGlazing", factor: 1.03 }
+];
+
+let labourRates = clone(labourRateSeed);
+let labourProductivity = clone(labourProductivitySeed);
+let labourAssumptions = clone(defaultLabourAssumptions);
+
 let materials = clone(materialSeed);
 let alternatives = clone(alternativeSeed);
 let assumptions = clone(defaultAssumptions);
@@ -604,9 +669,11 @@ function calculateEstimate(input) {
   totals.carbonDifference = totals.alternativeCarbon - totals.conventionalCarbon;
   totals.carbonReduction = calculateCarbonReductionPercentage(totals.conventionalCarbon, totals.alternativeCarbon);
 
-  return {
+  const totalBuildingHeight = storeyHeights.reduce((sum, height) => sum + height, 0);
+  const result = {
     input,
     slabArea,
+    footprintArea,
     wallArea,
     beamLength,
     slabVolume,
@@ -617,6 +684,9 @@ function calculateEstimate(input) {
     columnGrid,
     foundationVolume,
     concreteVolume,
+    steelQuantity,
+    storeyHeights,
+    totalBuildingHeight,
     plaster,
     flooring,
     rawQuantities,
@@ -625,6 +695,134 @@ function calculateEstimate(input) {
     comparison,
     totals
   };
+
+  result.labour = calculateLabourEstimate(result);
+  totals.conventionalLabourCost = result.labour.totals.conventionalCost;
+  totals.alternativeLabourCost = result.labour.totals.alternativeCost;
+  totals.conventionalTotalCost = totals.conventionalCost + totals.conventionalLabourCost;
+  totals.alternativeTotalCost = totals.alternativeCost + totals.alternativeLabourCost;
+  totals.materialCostDifference = totals.costDifference;
+  totals.labourCostDifference = totals.alternativeLabourCost - totals.conventionalLabourCost;
+  totals.totalCostDifference = totals.alternativeTotalCost - totals.conventionalTotalCost;
+  return result;
+}
+
+function normalizeEditableRows(seedRows, savedRows, numericFields) {
+  const savedById = new Map(
+    (Array.isArray(savedRows) ? savedRows : []).map((row) => [row.id, row])
+  );
+  return seedRows.map((seed) => {
+    const row = { ...seed, ...(savedById.get(seed.id) || {}) };
+    for (const field of numericFields) {
+      const value = Number(row[field]);
+      const minimum = field === "factor" ? 0.1 : 0;
+      row[field] = Number.isFinite(value) && value >= minimum
+        ? value
+        : seed[field];
+    }
+    return row;
+  });
+}
+
+function normalizeLabourAssumptions(saved = {}) {
+  const values = { ...defaultLabourAssumptions, ...(saved || {}) };
+  for (const [key, fallback] of Object.entries(defaultLabourAssumptions)) {
+    const value = Number(values[key]);
+    values[key] = Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+  return values;
+}
+
+function activeLabourMultiplier(activityId, comparison) {
+  const activeFactors = labourProductivity
+    .filter((rule) => rule.activityId === activityId)
+    .filter((rule) => {
+      const materialItem = comparison.find((item) => item.material.id === rule.materialId);
+      return materialItem && materialItem.selected && materialItem.selected.id === rule.alternativeId;
+    })
+    .map((rule) => Number(rule.factor))
+    .filter((factor) => Number.isFinite(factor) && factor > 0);
+
+  if (!activeFactors.length) return 1;
+  return activeFactors.reduce((sum, factor) => sum + factor, 0) / activeFactors.length;
+}
+
+function alternativeQuantityFor(result, materialId, fallback) {
+  const item = result.comparison.find((entry) => entry.material.id === materialId);
+  return item && item.selected ? item.alternativeQuantity : fallback;
+}
+
+function calculateLabourEstimate(result) {
+  const totalHeight = Number(result.totalBuildingHeight) || 0;
+  const footprintArea = Number(result.footprintArea) || 0;
+  const foundationDepth = footprintArea > 0
+    ? result.foundationVolume / footprintArea
+    : 0;
+  const foundationSideFormwork = footprintArea > 0
+    ? 4 * Math.sqrt(footprintArea) * foundationDepth
+    : 0;
+  const columnSideFormwork = result.columnsPerStorey
+    * 2 * (assumptions.columnWidth + assumptions.columnDepth)
+    * totalHeight;
+  const beamFormwork = result.beamLength
+    * (2 * assumptions.beamDepth + assumptions.beamWidth);
+  const formworkArea = Math.max(
+    0,
+    result.slabArea + beamFormwork + columnSideFormwork + foundationSideFormwork
+  );
+
+  const quantities = {
+    excavationVolume: result.foundationVolume * labourAssumptions.excavationFactor,
+    concreteVolume: result.concreteVolume,
+    steelQuantity: result.finalQuantities.conventionalSteel || result.steelQuantity || 0,
+    formworkArea,
+    masonryVolume: result.wallArea * labourAssumptions.masonryWallThickness,
+    plasterArea: result.wallArea,
+    flooringArea: result.slabArea,
+    paintingArea: result.wallArea * 2 + result.slabArea,
+    siteArea: result.slabArea,
+    paverQuantity: Number(result.input.optional.paver) || 0,
+    asphaltQuantity: Number(result.input.optional.asphalt) || 0,
+    glassQuantity: Number(result.input.optional.glass) || 0,
+    aluminiumQuantity: Number(result.input.optional.aluminium) || 0,
+    timberQuantity: Number(result.input.optional.newTimber) || 0
+  };
+
+  const alternativeQuantities = {
+    ...quantities,
+    steelQuantity: alternativeQuantityFor(result, "conventionalSteel", quantities.steelQuantity),
+    paverQuantity: alternativeQuantityFor(result, "conventionalConcretePaver", quantities.paverQuantity),
+    asphaltQuantity: alternativeQuantityFor(result, "conventionalAsphalt", quantities.asphaltQuantity),
+    glassQuantity: alternativeQuantityFor(result, "conventionalGlass", quantities.glassQuantity),
+    aluminiumQuantity: alternativeQuantityFor(result, "conventionalAluminium", quantities.aluminiumQuantity),
+    timberQuantity: alternativeQuantityFor(result, "newTimber", quantities.timberQuantity)
+  };
+
+  const rows = labourRates.map((rate) => {
+    const quantity = Math.max(0, Number(quantities[rate.quantitySource]) || 0);
+    const alternativeQuantity = Math.max(0, Number(alternativeQuantities[rate.quantitySource]) || 0);
+    const productivityFactor = activeLabourMultiplier(rate.id, result.comparison);
+    const effectiveAlternativeRate = rate.sustainableRate * productivityFactor;
+
+    return {
+      ...rate,
+      quantity,
+      alternativeQuantity,
+      productivityFactor,
+      effectiveAlternativeRate,
+      conventionalCost: quantity * rate.conventionalRate,
+      alternativeCost: alternativeQuantity * effectiveAlternativeRate
+    };
+  }).filter((row) => !row.optional || row.quantity > 0 || row.alternativeQuantity > 0);
+
+  const totals = rows.reduce((sum, row) => {
+    sum.conventionalCost += row.conventionalCost;
+    sum.alternativeCost += row.alternativeCost;
+    return sum;
+  }, { conventionalCost: 0, alternativeCost: 0 });
+
+  totals.costDifference = totals.alternativeCost - totals.conventionalCost;
+  return { rows, quantities, alternativeQuantities, formworkArea, totals };
 }
 
 function pickBestAlternative(item, alternativesList) {
@@ -677,6 +875,7 @@ function syncRoomsFromControls() {
   renderRooms();
   id("roomMetric").textContent = String(rooms.length);
   saveState();
+  if (lastResult) calculateAndRender();
 }
 
 function renderRooms() {
@@ -698,6 +897,7 @@ function renderRooms() {
       const key = input.dataset.roomKey;
       rooms[index][key] = Number(input.value);
       saveState();
+      if (lastResult) calculateAndRender();
     });
   });
 }
@@ -791,6 +991,170 @@ function renderMaterialRateTable() {
       if (lastResult) calculateAndRender();
     });
   });
+}
+
+function renderLabourRateTable() {
+  const rows = labourRates.map((rate) => `
+    <tr>
+      <td class="left"><strong>${rate.label}</strong><br><span class="helper-text">${rate.note}</span></td>
+      <td>${rate.unit}</td>
+      <td><input type="number" min="0" step="any" value="${rate.conventionalRate}" data-labour-rate="${rate.id}" data-field="conventionalRate" aria-label="Conventional labour rate for ${rate.label}"></td>
+      <td><input type="number" min="0" step="any" value="${rate.sustainableRate}" data-labour-rate="${rate.id}" data-field="sustainableRate" aria-label="Sustainable labour base rate for ${rate.label}"></td>
+    </tr>
+  `).join("");
+
+  id("labourRateTable").innerHTML = `
+    <thead><tr><th class="left">Construction activity</th><th>Unit</th><th>Conventional rate (₹/unit)</th><th>Sustainable base rate (₹/unit)</th></tr></thead>
+    <tbody>${rows}</tbody>
+  `;
+
+  id("labourRateTable").querySelectorAll("input").forEach((input) => {
+    input.addEventListener("input", () => {
+      if (input.value.trim() === "") return;
+      const value = Number(input.value);
+      if (!Number.isFinite(value) || value < 0) return;
+      const rate = labourRates.find((entry) => entry.id === input.dataset.labourRate);
+      if (!rate) return;
+      rate[input.dataset.field] = value;
+      saveState();
+      if (lastResult) calculateAndRender();
+    });
+    input.addEventListener("change", () => {
+      const value = Number(input.value);
+      if (input.value.trim() === "" || !Number.isFinite(value) || value < 0) {
+        const rate = labourRates.find((entry) => entry.id === input.dataset.labourRate);
+        if (rate) input.value = rate[input.dataset.field];
+      }
+    });
+  });
+}
+
+function renderLabourProductivityTable() {
+  const rows = labourProductivity.map((rule) => {
+    const material = getMaterial(rule.materialId);
+    const alternative = getAlternative(rule.alternativeId);
+    const activity = labourRateSeed.find((entry) => entry.id === rule.activityId);
+    return `
+      <tr>
+        <td class="left">${material ? material.name : rule.materialId} → ${alternative ? alternative.name : rule.alternativeId}</td>
+        <td class="left">${activity ? activity.label : rule.activityId}</td>
+        <td><input type="number" min="0.1" max="3" step="0.01" value="${rule.factor}" data-labour-factor="${rule.id}" aria-label="Productivity factor for ${alternative ? alternative.name : rule.alternativeId}"></td>
+      </tr>
+    `;
+  }).join("");
+
+  id("labourProductivityTable").innerHTML = `
+    <thead><tr><th class="left">Selected alternative</th><th class="left">Affected activity</th><th>Labour productivity factor (×)</th></tr></thead>
+    <tbody>${rows}</tbody>
+  `;
+
+  id("labourProductivityTable").querySelectorAll("input").forEach((input) => {
+    input.addEventListener("input", () => {
+      if (input.value.trim() === "") return;
+      const value = Number(input.value);
+      if (!Number.isFinite(value) || value < 0.1 || value > 3) return;
+      const rule = labourProductivity.find((entry) => entry.id === input.dataset.labourFactor);
+      if (!rule) return;
+      rule.factor = value;
+      saveState();
+      if (lastResult) calculateAndRender();
+    });
+    input.addEventListener("change", () => {
+      const value = Number(input.value);
+      const rule = labourProductivity.find((entry) => entry.id === input.dataset.labourFactor);
+      if (!rule) return;
+      if (input.value.trim() === "" || !Number.isFinite(value) || value < 0.1 || value > 3) {
+        input.value = rule.factor;
+      }
+    });
+  });
+}
+
+function bindLabourAssumptionInputs() {
+  const excavation = id("labourExcavationFactor");
+  const masonryThickness = id("labourMasonryThickness");
+  excavation.value = labourAssumptions.excavationFactor;
+  masonryThickness.value = labourAssumptions.masonryWallThickness * 1000;
+
+  excavation.addEventListener("input", () => {
+    if (excavation.value.trim() === "") return;
+    const value = Number(excavation.value);
+    if (!Number.isFinite(value) || value <= 0 || value > 10) return;
+    labourAssumptions.excavationFactor = value;
+    saveState();
+    if (lastResult) calculateAndRender();
+  });
+  excavation.addEventListener("change", () => {
+    const value = Number(excavation.value);
+    if (excavation.value.trim() === "" || !Number.isFinite(value) || value <= 0 || value > 10) {
+      excavation.value = labourAssumptions.excavationFactor;
+    }
+  });
+
+  masonryThickness.addEventListener("input", () => {
+    if (masonryThickness.value.trim() === "") return;
+    const value = Number(masonryThickness.value);
+    if (!Number.isFinite(value) || value <= 0 || value > 1000) return;
+    labourAssumptions.masonryWallThickness = value / 1000;
+    saveState();
+    if (lastResult) calculateAndRender();
+  });
+  masonryThickness.addEventListener("change", () => {
+    const value = Number(masonryThickness.value);
+    if (masonryThickness.value.trim() === "" || !Number.isFinite(value) || value <= 0 || value > 1000) {
+      masonryThickness.value = labourAssumptions.masonryWallThickness * 1000;
+    }
+  });
+}
+
+function resetLabourRates() {
+  labourRates = clone(labourRateSeed);
+  labourProductivity = clone(labourProductivitySeed);
+  labourAssumptions = clone(defaultLabourAssumptions);
+  renderLabourRateTable();
+  renderLabourProductivityTable();
+  id("labourExcavationFactor").value = labourAssumptions.excavationFactor;
+  id("labourMasonryThickness").value = labourAssumptions.masonryWallThickness * 1000;
+  saveState();
+  if (lastResult) calculateAndRender();
+}
+
+function renderLabourBreakdown(result) {
+  const rows = result.labour.rows.map((row) => `
+    <tr>
+      <td class="left"><strong>${row.label}</strong>${row.note ? `<br><span class="helper-text">${row.note}</span>` : ""}</td>
+      <td>${number(row.quantity, 2)}</td>
+      <td>${number(row.alternativeQuantity, 2)}</td>
+      <td>${row.unit}</td>
+      <td>${money(row.conventionalRate)}</td>
+      <td>${money(row.conventionalCost)}</td>
+      <td>${money(row.effectiveAlternativeRate)}${Math.abs(row.productivityFactor - 1) > 0.0001 ? `<br><span class="helper-text">factor ${number(row.productivityFactor, 2)}×</span>` : ""}</td>
+      <td>${money(row.alternativeCost)}</td>
+      <td class="${row.alternativeCost <= row.conventionalCost ? "positive" : "negative"}">${money(row.alternativeCost - row.conventionalCost)}</td>
+    </tr>
+  `).join("");
+
+  id("labourBreakdownTable").innerHTML = `
+    <thead><tr>
+      <th class="left">Type of work</th>
+      <th>Conventional quantity</th>
+      <th>Sustainable quantity</th>
+      <th>Unit</th>
+      <th>Conventional labour rate</th>
+      <th>Conventional labour cost</th>
+      <th>Sustainable labour rate</th>
+      <th>Sustainable labour cost</th>
+      <th>Labour difference</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr>
+      <th class="left" colspan="5">Total labour cost</th>
+      <th>${money(result.labour.totals.conventionalCost)}</th>
+      <th></th>
+      <th>${money(result.labour.totals.alternativeCost)}</th>
+      <th class="${result.labour.totals.costDifference <= 0 ? "positive" : "negative"}">${money(result.labour.totals.costDifference)}</th>
+    </tr></tfoot>
+  `;
 }
 
 function renderAdminAlternativeTable() {
@@ -916,6 +1280,7 @@ function renderResults(result) {
   id("downloadReportButton").disabled = false;
   renderComparisonTable(result);
   renderSummary(result);
+  renderLabourBreakdown(result);
   renderBreakdowns(result);
   renderQuantityTable(result);
   renderUsedAssumptions(result);
@@ -983,26 +1348,38 @@ function renderSummary(result) {
   const { totals } = result;
   id("summaryGrid").innerHTML = `
     <article class="summary-tile">
-      <p>Conventional design</p>
-      <span>Total material cost</span>
+      <p>Conventional Construction</p>
+      <span>Material cost</span>
       <strong class="amount">${money(totals.conventionalCost)}</strong>
-      <span>Total embodied CO2e</span>
+      <span>Labour cost</span>
+      <strong>${money(totals.conventionalLabourCost)}</strong>
+      <span>Total construction cost</span>
+      <strong class="amount">${money(totals.conventionalTotalCost)}</strong>
+      <span>Embodied CO₂e</span>
       <strong>${number(totals.conventionalCarbon, 0)} kg</strong>
     </article>
     <article class="summary-tile">
-      <p>Sustainable alternative design</p>
-      <span>Total material cost</span>
+      <p>Sustainable Construction</p>
+      <span>Material cost</span>
       <strong class="amount">${money(totals.alternativeCost)}</strong>
-      <span>Total embodied CO2e</span>
+      <span>Labour cost</span>
+      <strong>${money(totals.alternativeLabourCost)}</strong>
+      <span>Total construction cost</span>
+      <strong class="amount">${money(totals.alternativeTotalCost)}</strong>
+      <span>Embodied CO₂e</span>
       <strong>${number(totals.alternativeCarbon, 0)} kg</strong>
     </article>
     <article class="summary-tile">
       <p>Overall difference</p>
-      <span>Potential cost difference</span>
-      <strong class="${totals.costDifference <= 0 ? "positive" : "negative"}">${money(totals.costDifference)}</strong>
-      <span>Potential CO2e reduction</span>
+      <span>Total cost difference</span>
+      <strong class="${totals.totalCostDifference <= 0 ? "positive" : "negative"}">${money(totals.totalCostDifference)}</strong>
+      <span>Labour cost difference</span>
+      <strong class="${totals.labourCostDifference <= 0 ? "positive" : "negative"}">${money(totals.labourCostDifference)}</strong>
+      <span>Material cost difference</span>
+      <strong class="${totals.materialCostDifference <= 0 ? "positive" : "negative"}">${money(totals.materialCostDifference)}</strong>
+      <span>Potential carbon reduction</span>
       <strong class="${totals.carbonDifference <= 0 ? "positive" : "negative"}">${number(-totals.carbonDifference, 0)} kg (${pct(totals.carbonReduction)})</strong>
-      <span class="helper-text">Estimated potential saving/reduction - not guaranteed.</span>
+      <span class="helper-text">Positive cost difference means the sustainable design costs more. Estimates only.</span>
     </article>
   `;
 }
@@ -1073,7 +1450,11 @@ function renderUsedAssumptions(result) {
     `Net wall area: ${number(result.wallArea, 1)} m2`,
     `Plaster volume: ${number(result.plaster.wetVolume, 2)} m3`,
     `Flooring bed volume: ${number(result.flooring.wetVolume, 2)} m3`,
-    `Steel intensities are estimating assumptions, not reinforcement design.`
+    `Steel intensities are estimating assumptions, not reinforcement design.`,
+    `Labour rates are illustrative labour-only estimates; confirm with local contractors.`,
+    `Excavation quantity allowance: ${number(labourAssumptions.excavationFactor, 2)} × estimated foundation concrete volume.`,
+    `Masonry wall thickness used for labour quantity: ${number(labourAssumptions.masonryWallThickness * 1000, 0)} mm.`,
+    `RCC placement, steel fixing, formwork, masonry, plastering and painting labour are separate to avoid composite-rate double-counting.`
   ];
   const assumptionItems = Object.entries(assumptionLabels).map(([key, label]) => {
     const value = assumptionValueForDisplay(key, assumptions[key]);
@@ -1104,8 +1485,8 @@ function resetInputs() {
   assumptions = normalizeAssumptions(assumptions);
   renderAssumptions();
   rooms = [];
-  syncRoomsFromControls();
   lastResult = null;
+  syncRoomsFromControls();
   id("emptyResults").hidden = false;
   id("resultsContent").hidden = true;
   id("downloadReportButton").disabled = true;
@@ -1159,6 +1540,9 @@ function saveState() {
     assumptions,
     rooms,
     selectedAlternatives,
+    labourRates,
+    labourProductivity,
+    labourAssumptions,
     fields: collectFieldValues()
   };
   try {
@@ -1196,6 +1580,9 @@ function loadState() {
     assumptions = normalizeAssumptions(state.assumptions || {});
     rooms = state.rooms || [];
     selectedAlternatives = state.selectedAlternatives || {};
+    labourRates = normalizeEditableRows(labourRateSeed, state.labourRates, ["conventionalRate", "sustainableRate"]);
+    labourProductivity = normalizeEditableRows(labourProductivitySeed, state.labourProductivity, ["factor"]);
+    labourAssumptions = normalizeLabourAssumptions(state.labourAssumptions || {});
     hydrateFields(state.fields);
   } catch (error) {
     console.warn("Unable to load saved state", error);
@@ -1213,13 +1600,21 @@ function bindEvents() {
   id("calculateButton").addEventListener("click", calculateAndRender);
   id("resetFormButton").addEventListener("click", resetInputs);
   id("resetRatesButton").addEventListener("click", resetRates);
+  id("resetLabourRatesButton").addEventListener("click", resetLabourRates);
+  bindLabourAssumptionInputs();
   id("downloadReportButton").addEventListener("click", () => window.print());
   id("openAdminButton").addEventListener("click", openAdminDialog);
   id("unlockAdminButton").addEventListener("click", unlockAdmin);
 
   document.querySelectorAll("input").forEach((input) => {
-    if (!input.closest("#roomGrid") && !input.closest("#assumptionGrid") && !input.closest("#materialRateTable") && !input.closest("#adminAlternativeTable")) {
-      input.addEventListener("input", saveState);
+    if (!input.closest("#roomGrid") && !input.closest("#assumptionGrid") && !input.closest("#materialRateTable") && !input.closest("#adminAlternativeTable") && !input.closest("#labourRateTable") && !input.closest("#labourProductivityTable") && !input.closest(".labour-assumptions-grid")) {
+      input.addEventListener("input", () => {
+        saveState();
+        // Changes to quantity/rate inputs refresh an already-calculated estimate.
+        // Storey/room counts are recalculated after change/blur to avoid partial-number states.
+        const noAutoRecalculate = ["projectName", "projectLocation", "storeys", "roomsPerStorey", "adminCode"];
+        if (lastResult && !noAutoRecalculate.includes(input.id)) calculateAndRender();
+      });
     }
   });
 
@@ -1243,6 +1638,8 @@ function init() {
   }
   renderAssumptions();
   renderMaterialRateTable();
+  renderLabourRateTable();
+  renderLabourProductivityTable();
   renderAdminAlternativeTable();
   bindEvents();
 }
