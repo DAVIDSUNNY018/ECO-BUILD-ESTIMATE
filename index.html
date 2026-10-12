@@ -38,7 +38,7 @@
         <p class="eyebrow">Civil engineering preliminary estimator</p>
         <h1 id="pageTitle">Eco Build Estimate - Sustainable Construction Material &amp; Cost Calculator</h1>
         <p>
-          Estimate construction material quantities, illustrative cost, and embodied carbon, then compare conventional choices with lower-carbon alternatives.
+          Estimate construction material quantities, illustrative material and labour costs, total construction cost, and embodied carbon, then compare conventional choices with lower-carbon alternatives.
         </p>
       </div>
       <div class="intro-panel" aria-label="Current estimate status">
@@ -263,8 +263,51 @@
           </details>
         </section>
 
+        <section class="section-card accordion-card" id="labourRates" aria-labelledby="labourRatesHeading">
+          <details class="section-accordion">
+            <summary class="section-heading accordion-heading">
+              <span class="accordion-title">
+                <span class="section-kicker">Step 5B</span>
+                <span class="accordion-heading-text" id="labourRatesHeading" role="heading" aria-level="2">Labour Rates &amp; Assumptions</span>
+                <span class="section-badge">Editable labour-only estimates</span>
+              </span>
+            </summary>
+            <div class="accordion-content">
+              <p class="helper-text labour-disclaimer">Illustrative labour-only rates in INR, not contractor quotations. These exclude materials, machinery and transport hire, scaffolding rental, contractor overheads and taxes. RCC placement excludes shuttering and reinforcement fixing; masonry excludes plastering; plastering excludes painting, so these work items are not counted twice.</p>
+              <div class="input-grid two labour-assumptions-grid">
+                <label>
+                  <span>Excavation quantity factor × foundation concrete volume</span>
+                  <input id="labourExcavationFactor" type="number" min="0.1" max="10" step="0.1" value="1.8">
+                </label>
+                <label>
+                  <span>Masonry wall thickness for labour quantity (mm)</span>
+                  <input id="labourMasonryThickness" type="number" min="1" max="1000" step="10" value="230">
+                </label>
+              </div>
+              <div class="accordion-actions">
+                <p class="helper-text">Conventional and sustainable rates are editable separately. Chosen material alternatives can also adjust productivity factors below.</p>
+                <button class="secondary-button" type="button" id="resetLabourRatesButton">Reset labour rates</button>
+              </div>
+              <div class="table-wrap wide">
+                <table id="labourRateTable">
+                  <caption>Editable illustrative labour rates for each construction activity</caption>
+                </table>
+              </div>
+              <details class="details-panel labour-productivity-panel">
+                <summary>Alternative-specific installation productivity factors</summary>
+                <p class="helper-text">A factor of 1.00 means no adjustment. These illustrative factors apply only when the corresponding material alternative is selected. When multiple selected alternatives affect the same activity, factors are averaged.</p>
+                <div class="table-wrap wide">
+                  <table id="labourProductivityTable">
+                    <caption>Editable productivity adjustments for selected material alternatives</caption>
+                  </table>
+                </div>
+              </details>
+            </div>
+          </details>
+        </section>
+
         <div class="action-row">
-          <button class="primary-button" type="button" id="calculateButton">Calculate materials</button>
+          <button class="primary-button" type="button" id="calculateButton">Calculate materials &amp; labour</button>
           <button class="secondary-button" type="button" id="resetFormButton">Reset inputs</button>
           <p id="errorMessage" class="error-message" role="alert"></p>
         </div>
@@ -280,7 +323,7 @@
 
           <div id="emptyResults" class="empty-results">
             <strong>No estimate calculated yet.</strong>
-            <span>Complete the dimensions and select Calculate materials to generate the comparison table, cost summary, and carbon breakdown.</span>
+            <span>Complete the dimensions and select Calculate materials &amp; labour to generate the material comparison, labour breakdown, total cost summary, and carbon breakdown.</span>
           </div>
 
           <div id="resultsContent" hidden>
@@ -293,9 +336,18 @@
               </table>
             </div>
             <div id="summaryGrid" class="summary-grid"></div>
+            <section class="mini-section labour-breakdown-section" aria-labelledby="labourBreakdownHeading">
+              <h3 id="labourBreakdownHeading">Labour Cost Breakdown</h3>
+              <p class="helper-text">Estimated work quantities and separate labour rates for conventional and sustainable designs. Positive labour difference means the sustainable design costs more.</p>
+              <div class="table-wrap wide">
+                <table id="labourBreakdownTable">
+                  <caption>Conventional and sustainable construction labour cost comparison</caption>
+                </table>
+              </div>
+            </section>
             <div class="breakdown-grid">
               <section class="mini-section" aria-labelledby="costBreakdownHeading">
-                <h3 id="costBreakdownHeading">Cost Breakdown</h3>
+                <h3 id="costBreakdownHeading">Material Cost Breakdown</h3>
                 <div id="costBreakdown" class="bars"></div>
               </section>
               <section class="mini-section" aria-labelledby="carbonBreakdownHeading">
@@ -354,7 +406,7 @@
 
   <footer class="site-footer">
     <p>
-      This calculator provides preliminary construction quantity, cost and embodied-carbon estimates for planning and educational purposes. It is not a substitute for structural design, detailed quantity surveying, approved specifications, professional engineering judgement, or current local market rates. Structural member sizes and reinforcement quantities must be verified by a qualified civil/structural engineer before construction.
+      This calculator provides preliminary construction quantity, illustrative labour/material cost and embodied-carbon estimates for planning and educational purposes. It is not a substitute for structural design, detailed quantity surveying, approved specifications, professional engineering judgement, or current local market rates. Structural member sizes and reinforcement quantities must be verified by a qualified civil/structural engineer before construction.
     </p>
   </footer>
 </body>
