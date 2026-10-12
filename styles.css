@@ -1008,3 +1008,83 @@ tbody tr:last-child td {
     width: 100%;
   }
 }
+
+
+/* Labour estimation module - extends existing styling without changing the layout system. */
+.labour-disclaimer {
+  padding: 12px 14px;
+  border-left: 4px solid var(--amber);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--amber-soft);
+  color: #56441e;
+}
+
+.labour-assumptions-grid {
+  margin: 16px 0;
+}
+
+.labour-assumptions-grid input {
+  width: 100%;
+  min-width: 0;
+}
+
+.labour-breakdown-section {
+  margin-top: 18px;
+  box-shadow: none;
+  min-width: 0;
+}
+
+.labour-breakdown-section h3 {
+  margin-top: 0;
+}
+
+#labourRateTable,
+#labourProductivityTable,
+#labourBreakdownTable {
+  min-width: 960px;
+}
+
+#labourRateTable input,
+#labourProductivityTable input {
+  width: 120px;
+  min-width: 90px;
+}
+
+#labourRateTable td:first-child {
+  min-width: 250px;
+}
+
+#labourProductivityTable td:first-child,
+#labourProductivityTable td:nth-child(2) {
+  min-width: 230px;
+}
+
+#labourBreakdownTable td:first-child {
+  min-width: 240px;
+}
+
+#labourBreakdownTable tfoot th,
+#labourBreakdownTable tfoot td {
+  background: var(--surface-alt);
+  font-weight: 800;
+}
+
+.labour-productivity-panel {
+  margin-top: 16px;
+}
+
+@media (max-width: 720px) {
+  #labourRateTable,
+  #labourProductivityTable,
+  #labourBreakdownTable {
+    min-width: 900px;
+  }
+
+  .labour-assumptions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .labour-breakdown-section {
+    padding: 14px;
+  }
+}
